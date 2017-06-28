@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16F73" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12089"/>
+        <capability name="Aspect ratio constraints" minToolsVersion="5.1"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="ViewController" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
+                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="gmb-dD-mnG" customClass="CircleIndicatorView">
+                                <rect key="frame" x="0.0" y="47" width="375" height="294"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="5uA-S1-4BE">
+                                        <rect key="frame" x="321" y="16" width="31" height="30"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <state key="normal" title="闪动"/>
+                                        <connections>
+                                            <action selector="circleIndicatorShine" destination="BYZ-38-t0r" eventType="touchUpInside" id="cuY-Xz-lN9"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
+                                <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" secondItem="gmb-dD-mnG" secondAttribute="height" multiplier="375:294" id="LW0-Wg-a7V"/>
+                                    <constraint firstAttribute="width" constant="375" id="lEn-rh-fUz"/>
+                                </constraints>
+                            </view>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="qXZ-bA-Ooq" customClass="RectangleIndicatorView">
+                                <rect key="frame" x="0.0" y="361" width="375" height="222"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="eH3-Bk-sOF">
+                                        <rect key="frame" x="323" y="8" width="31" height="30"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <state key="normal" title="闪动"/>
+                                        <connections>
+                                            <action selector="rectangleIndicatorShine" destination="BYZ-38-t0r" eventType="touchUpInside" id="Kdi-FQ-qoh"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
+                                <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" secondItem="qXZ-bA-Ooq" secondAttribute="height" multiplier="125:74" id="cfV-OC-Yb3"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <color key="backgroundColor" red="0.30008016973470297" green="0.84103660117731027" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="qXZ-bA-Ooq" firstAttribute="width" secondItem="8bC-Xf-vdC" secondAttribute="width" id="1T7-9Z-DYC"/>
+                            <constraint firstItem="gmb-dD-mnG" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="5Xj-ep-6Xr"/>
+                            <constraint firstItem="qXZ-bA-Ooq" firstAttribute="top" secondItem="gmb-dD-mnG" secondAttribute="bottom" constant="20" id="bTV-kS-lVW"/>
+                            <constraint firstItem="qXZ-bA-Ooq" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="hA8-dH-bkl"/>
+                            <constraint firstItem="gmb-dD-mnG" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" constant="-139.5" id="x66-c2-a0H"/>
+                        </constraints>
+                    </view>
+                    <connections>
+                        <outlet property="circleIndicatorView" destination="gmb-dD-mnG" id="TMb-Ry-Tzn"/>
+                        <outlet property="rectangleIndicatorView" destination="qXZ-bA-Ooq" id="eWp-dc-cNC"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+</document>
