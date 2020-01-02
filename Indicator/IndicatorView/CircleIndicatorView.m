@@ -7,6 +7,7 @@
 //
 
 #define AngleToRadian(x) (M_PI*(x)/180.0) // 把角度转换成弧度
+#define RadianToAngle(x) (180.0*(x)/M_PI) // 把弧度转换成角度
 #define SystemVersion [[[UIDevice currentDevice] systemVersion] floatValue]
 #define DefaultFont(fontsize) SystemVersion >= 9.0 ? [UIFont fontWithName:@"PingFangSC-Light" size:(fontsize)] : [UIFont systemFontOfSize:(fontsize)]
 
@@ -33,7 +34,7 @@
 @property (nonatomic, assign) CGFloat innerAnnulusScaleRectangleWidht; /**< 内圆环外部刻度矩形的宽，以圆环中最顶端的矩形为准 */
 @property (nonatomic, assign) CGFloat innerAnnulusScaleRectangleHeight; /**< 内圆环外部刻度矩形的高，以圆环中最顶端的矩形为准 */
 
-@property (nonatomic, assign) CGFloat startAngle; /**< 起始角度，从圆的中垂线下半部半径开始，顺时针计算 */
+@property (nonatomic, assign) CGFloat startAngle; /**< 起始角度，以圆的水平分割线的右半边为 0 度，往下顺时针旋转 */
 @property (nonatomic, assign) CGFloat endAngle;   /**< 结束角度 */
 
 @property (nonatomic, assign) NSUInteger innerAnnulusLineCountToShow; /**< 内圆环要显示的线条数 */
@@ -81,6 +82,7 @@
 @property (nonatomic, assign) NSTimeInterval animationTimeInterval; /**< 动画的间隔 */
 
 @property (nonatomic, strong) NSMutableArray *scaleLabelArrayM; // 为了防止 label 释放，这里强引用一下
+@property (nonatomic, strong) UIView *touchView; // 触摸 View
 
 @end
 
@@ -147,6 +149,66 @@
     [self.addButton setImage:[UIImage imageNamed:@"btn_plus"] forState:UIControlStateNormal];
     [self.addButton setImage:[UIImage imageNamed:@"btn_plus_close"] forState:UIControlStateDisabled];
     [self.addButton addTarget:self action:@selector(addButtonClick) forControlEvents:UIControlEventTouchUpInside];
+    
+    [self addTouchView];
+}
+
+- (void)addTouchView {
+    UIView *touchView = [UIView new];
+    self.touchView = touchView;
+    [self insertSubview:touchView atIndex:0];
+    touchView.backgroundColor = [UIColor clearColor];
+    
+    UILongPressGestureRecognizer *pan = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(touchAction:)];
+    [self.touchView addGestureRecognizer:pan];
+    pan.minimumPressDuration = 0;
+    pan.allowableMovement = CGFLOAT_MAX;
+}
+
+- (void)touchAction:(UILongPressGestureRecognizer *)pan {
+    
+    CGPoint point = [pan locationInView:self.touchView];
+    CGFloat pointAngle = 0;
+    
+    CGFloat tanValue = fabs(point.x - self.circleCenter.x) / fabs(point.y - self.circleCenter.y);
+    CGFloat tanRadian = atan(tanValue);
+    CGFloat tanAgnle = RadianToAngle(tanRadian);
+    if (point.y > self.circleCenter.y && tanAgnle < 45) {
+        return;
+    }
+    
+    if (point.x > self.circleCenter.x && point.y > self.circleCenter.y) {
+        CGFloat tanValue = fabs(point.y - self.circleCenter.y) / fabs(point.x - self.circleCenter.x);
+        CGFloat tanRadian = atan(tanValue);
+        CGFloat tanAgnle = RadianToAngle(tanRadian);
+        pointAngle = 360 + tanAgnle;
+    }
+    if (point.x > self.circleCenter.x && point.y < self.circleCenter.y) {
+        CGFloat tanValue = fabs(point.x - self.circleCenter.x) / fabs(point.y - self.circleCenter.y);
+        CGFloat tanRadian = atan(tanValue);
+        CGFloat tanAgnle = RadianToAngle(tanRadian);
+        pointAngle = 270 + tanAgnle;
+    }
+    if (point.x < self.circleCenter.x && point.y < self.circleCenter.y) {
+        CGFloat tanValue = fabs(point.y - self.circleCenter.y) / fabs(point.x - self.circleCenter.x);
+        CGFloat tanRadian = atan(tanValue);
+        CGFloat tanAgnle = RadianToAngle(tanRadian);
+        pointAngle = 180 + tanAgnle;
+    }
+    if (point.x < self.circleCenter.x && point.y > self.circleCenter.y) {
+        CGFloat tanValue = fabs(point.x - self.circleCenter.x) / fabs(point.y - self.circleCenter.y);
+        CGFloat tanRadian = atan(tanValue);
+        CGFloat tanAgnle = RadianToAngle(tanRadian);
+        pointAngle = 90 + tanAgnle;
+    }
+    
+    CGFloat angleMargin = pointAngle - self.startAngle;
+    CGFloat toValue = self.minValue;
+    if (360 - self.openAngle != 0) {
+        toValue = (self.maxValue - self.minValue) * (angleMargin / (360 - self.openAngle)) + self.minValue;
+    }
+    
+    [self setIndicatorValue:toValue animated:NO];
 }
 
 /// 更新 UI 以适应视图大小的改变
@@ -203,6 +265,9 @@
     self.addButton.frame = CGRectMake(0, 0, addButtonWidth, addButtonHeight);
     self.addButton.center = CGPointMake(addButtonCenterX, addButtonCenterY);
     self.addButton.enabled = self.enable;
+    
+    // ━━━━━━━━━━━━━━━━━━━━ 触摸 View ━━━━━━━━━━━━━━━━━━━━
+    self.touchView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
 }
 
 /// 设置那些与尺寸无关的变量的默认值
@@ -828,13 +893,42 @@
 }
 
 - (void)setIndicatorValue:(NSInteger)indicatorValue animated:(BOOL)animated {
-    if (animated) {
-        [self setIndicatorValue:indicatorValue];
-    } else {
-        [self.queue cancelAllOperations];
-        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
-        self.layer2.mask = [self maskLayerForLayer2WithLineNumber:toLineNumber];
+    if (!self.enable) {
+        return;
     }
+    
+    if (self.queue) {
+        [self.queue cancelAllOperations];
+    }
+    
+    if (indicatorValue < self.minValue) {
+        indicatorValue = self.minValue;
+    }
+    if (indicatorValue > self.maxValue) {
+        indicatorValue = self.maxValue;
+    }
+    
+    NSUInteger oldIndicatorValue = _indicatorValue;
+    
+    _indicatorValue = indicatorValue;
+    
+    CGFloat durationTemp = 0;
+    if (animated) {
+        NSInteger fromLineNumber = [self lineNumberWithIndicatorValue:oldIndicatorValue];
+        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
+        int minus = (int)(toLineNumber - fromLineNumber);
+        durationTemp = abs(minus) * 0.02;
+    }
+    
+    [self changeIndicatorFromValue:oldIndicatorValue toValue:indicatorValue isShowAccessoryWhenFinished:YES duration:durationTemp];
+    
+//    if (animated) {
+//        [self setIndicatorValue:indicatorValue];
+//    } else {
+//        [self.queue cancelAllOperations];
+//        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
+//        self.layer2.mask = [self maskLayerForLayer2WithLineNumber:toLineNumber];
+//    }
 }
 
 #pragma mark - ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ Getter and Setter ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬

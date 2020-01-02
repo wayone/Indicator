@@ -28,8 +28,8 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
 @property (nonatomic, strong) CALayer *layer2;
 
 #pragma mark - ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ 开始 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-// 默认居中
-@property (nonatomic, assign) CGFloat rectangleY; /**< 矩形条 Y */
+
+@property (nonatomic, assign) CGFloat rectangleY; /**< 矩形条 Y，默认 139 */
 
 @property (nonatomic, assign) CGFloat rectangleWidth; /**< 矩形条宽 */
 @property (nonatomic, assign) CGFloat rectangleHeight; /**< 矩形条高 */
@@ -86,6 +86,7 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
 @property (nonatomic, assign) BOOL isStop; /**< 是否立即停止 */
 
 @property (nonatomic, assign) NSTimeInterval animationTimeInterval; /**< 动画的间隔 */
+@property (nonatomic, strong) UIView *touchView; // 触摸 View
 
 @end
 
@@ -150,6 +151,38 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
     [self.addButton setImage:[UIImage imageNamed:@"btn_plus"] forState:UIControlStateNormal];
     [self.addButton setImage:[UIImage imageNamed:@"btn_plus_close"] forState:UIControlStateDisabled];
     [self.addButton addTarget:self action:@selector(addButtonClick) forControlEvents:UIControlEventTouchUpInside];
+    
+    [self addTouchView];
+}
+
+- (void)addTouchView {
+    UIView *touchView = [UIView new];
+    self.touchView = touchView;
+    [self addSubview:touchView];
+    touchView.backgroundColor = [UIColor clearColor];
+    
+    UILongPressGestureRecognizer *pan = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(touchAction:)];
+    [self.touchView addGestureRecognizer:pan];
+    pan.minimumPressDuration = 0;
+    pan.allowableMovement = CGFLOAT_MAX;
+}
+
+- (void)touchAction:(UILongPressGestureRecognizer *)pan {
+    CGPoint point = [pan locationInView:self.touchView];
+    CGFloat x = point.x - self.startX;
+    if (x < 0) {
+        x = 0;
+    }
+    if (x > self.rectangleWidth) {
+        x = self.rectangleWidth;
+    }
+    
+    CGFloat indicatorValue = self.minValue;
+    if (self.rectangleWidth != 0) {
+        indicatorValue = x / self.rectangleWidth * (self.maxValue - self.minValue) + self.minValue;
+    }
+    
+    [self setIndicatorValue:indicatorValue animated:NO];
 }
 
 /// 更新 UI , 包含了对子视图位置的更新、样式的更新、状态的更新
@@ -203,6 +236,9 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
     CGFloat addButtonCenterY = self.rectangleY - self.addButtonYOffset - self.addButtonHeight;
     self.addButton.frame = CGRectMake(addButtonCenterX, addButtonCenterY, addButtonWidth, addButtonHeight);
     self.addButton.enabled = self.enable;
+    
+    // ━━━━━━━━━━━━━━━━━━━━ 触摸 View ━━━━━━━━━━━━━━━━━━━━
+    self.touchView.frame = CGRectMake(0, self.rectangleY, self.bounds.size.width, self.rectangleHeight);
 }
 
 /// 设置那些与尺寸无关的变量的默认值
@@ -753,13 +789,29 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
 }
 
 - (void)setIndicatorValue:(NSInteger)indicatorValue animated:(BOOL)animated {
-    if (animated) {
-        [self setIndicatorValue:indicatorValue];
-    } else {
-        [self.queue cancelAllOperations];
-        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
-        self.layer2.mask = [self maskLayerForLayer2WithLineNumber:toLineNumber];
+    if (!self.enable) {
+        return;
     }
+    
+    if (indicatorValue < self.minValue) {
+        indicatorValue = self.minValue;
+    }
+    if (indicatorValue > self.maxValue) {
+        indicatorValue = self.maxValue;
+    }
+    
+    NSUInteger oldIndicatorValue = _indicatorValue;
+    _indicatorValue = indicatorValue;
+    
+    CGFloat durationTemp = 0;
+    if (animated) {
+        NSInteger fromLineNumber = [self lineNumberWithIndicatorValue:oldIndicatorValue];
+        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
+        int minus = (int)(toLineNumber - fromLineNumber);
+        durationTemp = abs(minus) * 0.02;
+    }
+    
+    [self changeIndicatorFromValue:oldIndicatorValue toValue:indicatorValue isShowAccessoryWhenFinished:YES duration:durationTemp];
 }
 
 #pragma mark - ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ Getter and Setter ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
