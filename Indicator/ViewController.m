@@ -70,7 +70,7 @@
 }
 
 - (IBAction)rectangleIndicatorShine {
-    [self.rectangleIndicatorView shineWithTimeInterval:0.01 pauseDuration:0 finalValue:50 finishBlock:^{
+    [self.rectangleIndicatorView shineWithTimeInterval:0.01 pauseDuration:0 finalValue:72 finishBlock:^{
         //NSLog(@"---------- 执行完毕");
     }];
 }
