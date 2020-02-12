@@ -1,4 +1,4 @@
-仪表盘 / 指示器 / 温度计 / 湿度计 / Indicator / dashboard
+# 仪表盘 / 指示器 / 温度计 / 湿度计 / Indicator / dashboard
 
 ✨ 支持
 - 自定义显示数值。
