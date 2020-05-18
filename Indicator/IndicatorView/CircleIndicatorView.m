@@ -84,6 +84,8 @@
 @property (nonatomic, strong) NSMutableArray *scaleLabelArrayM; // 为了防止 label 释放，这里强引用一下
 @property (nonatomic, strong) UIView *touchView; // 触摸 View
 
+@property (nonatomic, strong) NSMutableArray<NSOperation *> *operationArrayM; // 作用：方便添加 operation 之间的依赖：方便取消任务。
+
 @end
 
 @implementation CircleIndicatorView
@@ -209,6 +211,10 @@
     }
     
     [self setIndicatorValue:toValue animated:NO];
+    
+    if (pan.state == UIGestureRecognizerStateEnded && self.touchEndBlock) {
+        self.touchEndBlock(self.indicatorValue);
+    }
 }
 
 /// 更新 UI 以适应视图大小的改变
@@ -424,66 +430,111 @@
 
 - (void)shineWithTimeInterval:(NSTimeInterval)timeInterval pauseDuration:(NSTimeInterval)pauseDuration finalValue:(NSUInteger)finalValue finishBlock:(void(^)())finishBlock {
     
-    [self.queue cancelAllOperations];
+    [self cancelAllOperations];
     
-    //NSLog(@"剩余任务数量：%lu", (unsigned long)self.queue.operationCount);
     if (!self.enable) {
         return;
     }
     
     //━━━━━━━━━━━━━━━━━━━━ 前进 0 ~ 1 ━━━━━━━━━━━━━━━━━━━━
     
-    NSMutableArray *operationArrayM = [self operationFromValue:(self.minValue - 1) toValue:self.maxValue timeInterval:timeInterval isShowAccessoryWhenFinished:NO];
+    NSMutableArray *operation_01_Array = [self makeOperationFromValue:(self.minValue - 1) toValue:self.maxValue timeInterval:timeInterval isShowAccessoryWhenFinished:NO];
+    [self.operationArrayM addObjectsFromArray:operation_01_Array];
     
     //━━━━━━━━━━━━━━━━━━━━ 停顿 ━━━━━━━━━━━━━━━━━━━━
     
-    NSOperation *oprationPause = [NSBlockOperation blockOperationWithBlock:^{
+    NSOperation *operationPause = [NSBlockOperation blockOperationWithBlock:^{
         self.animationTimeInterval = timeInterval;
         [NSThread sleepForTimeInterval:pauseDuration];
     }];
-    NSOperation *lastOperationGo = operationArrayM.lastObject;
-    if (lastOperationGo) {
-        [oprationPause addDependency:lastOperationGo];
-    }
-    
-    [operationArrayM addObject:oprationPause];
+    [operationPause addDependency:self.operationArrayM.lastObject];
+    [self.queue addOperation:operationPause];
+    [self.operationArrayM addObject:operationPause];
     
     //━━━━━━━━━━━━━━━━━━━━ 后退 1 ~ 0 ━━━━━━━━━━━━━━━━━━━━
     
-    NSMutableArray *operationGoBackArrayM = [self operationFromValue:self.maxValue toValue:(self.minValue - 1) timeInterval:timeInterval isShowAccessoryWhenFinished:NO];
-    NSOperation *firstGoBackOperation = operationGoBackArrayM.firstObject;
-    [firstGoBackOperation addDependency:oprationPause];
-    
-    [operationArrayM addObjectsFromArray:operationGoBackArrayM];
+    NSArray *operation_10_Array = [self makeOperationFromValue:self.maxValue toValue:(self.minValue - 1) timeInterval:timeInterval isShowAccessoryWhenFinished:NO];
+    [operation_10_Array.firstObject addDependency:self.operationArrayM.lastObject];
+    [self.operationArrayM addObjectsFromArray:operation_10_Array];
     
     //━━━━━━━━━━━━━━━━━━━━ 前进 0 ~ 目标值 ━━━━━━━━━━━━━━━━━━━━
     
-    NSMutableArray *operationGoToFinalValueArrayM = [self operationFromValue:(self.minValue - 1) toValue:finalValue timeInterval:timeInterval isShowAccessoryWhenFinished:YES];
-    NSOperation *firstOperationGoToFinalValue = operationGoToFinalValueArrayM.firstObject;
-    NSOperation *lastOperationGoBack = operationArrayM.lastObject;
-    
-    if (lastOperationGoBack) {
-        [firstOperationGoToFinalValue addDependency:lastOperationGoBack];
-    }
-    [operationArrayM addObjectsFromArray:operationGoToFinalValueArrayM];
+    NSArray *operation_0FinalValue_Array = [self makeOperationFromValue:(self.minValue - 1) toValue:finalValue timeInterval:timeInterval isShowAccessoryWhenFinished:YES];
+    [operation_0FinalValue_Array.firstObject addDependency:self.operationArrayM.lastObject];
+    [self.operationArrayM addObjectsFromArray:operation_0FinalValue_Array];
     
     //━━━━━━━━━━━━━━━━━━━━ 完成回调 ━━━━━━━━━━━━━━━━━━━━
     
-    NSOperation *oprationFinishBlock = [NSBlockOperation blockOperationWithBlock:^{
+    NSOperation *operationFinish = [NSBlockOperation blockOperationWithBlock:^{
         if (finishBlock) {
             finishBlock();
         }
     }];
-    NSOperation *lastOperation2 = operationArrayM.lastObject;
-    if (lastOperation2) {
-        [oprationFinishBlock addDependency:lastOperation2];
+    [operationFinish addDependency:self.operationArrayM.lastObject];
+    [[NSOperationQueue mainQueue] addOperation:operationFinish];
+    [self.operationArrayM addObject:operationFinish];
+}
+
+/// 创建 operation，并将其放到恰当的队列里，返回创建的所有 operation
+- (NSMutableArray *)makeOperationFromValue:(CGFloat)fromValue toValue:(CGFloat)toValue timeInterval:(NSTimeInterval)timeInterval isShowAccessoryWhenFinished:(BOOL)isShowAccessory {
+    if (self.isStop) {
+        return [NSMutableArray array];
+    }
+    NSInteger fromLineNumber = [self lineNumberWithIndicatorValue:fromValue];
+    NSInteger toLineNumber = [self lineNumberWithIndicatorValue:toValue];
+
+    NSMutableArray *oprationArrayM = [NSMutableArray array];
+    
+    int minus = (int)(toLineNumber - fromLineNumber);
+    
+    NSBlockOperation *lastOperation = nil;
+
+    for (int i = 0; i <= abs(minus); i++) {
+        
+        int nextLineNumber = (int)fromLineNumber + (minus > 0 ? i : -i);
+        
+        NSBlockOperation *operation_setMask = [NSBlockOperation blockOperationWithBlock:^{
+            self.layer2.mask = [self maskLayerForLayer2WithLineNumber:nextLineNumber];
+        }];
+        if (lastOperation) {
+            [operation_setMask addDependency:lastOperation];
+        }
+        
+        NSBlockOperation *operation_sleep = [NSBlockOperation blockOperationWithBlock:^{
+            self.animationTimeInterval = timeInterval;
+            // 这个任务会被加到非主队列，会在非主线程执行，所以，这里的睡眠不会影响主线程。
+            [NSThread sleepForTimeInterval:timeInterval];
+        }];
+        [operation_sleep addDependency:operation_setMask];
+
+        // 将【 UI 刷新】放到主队列
+        [[NSOperationQueue mainQueue] addOperation:operation_setMask];
+        
+        // 将【睡眠】放到非主队列
+        [self.queue addOperation:operation_sleep];
+        
+        // 将所有的 operation 保存到数组中，后面取消 operation 时需要用到。
+        [oprationArrayM addObject:operation_setMask];
+        [oprationArrayM addObject:operation_sleep];
+        
+        lastOperation = operation_sleep;
     }
     
-    [operationArrayM addObject:oprationFinishBlock];
-    
-    //━━━━━━━━━━━━━━━━━━━━ 将所有任务添加到队列 ━━━━━━━━━━━━━━━━━━━━
-    
-    [self.queue addOperations:operationArrayM waitUntilFinished:NO];
+    if (isShowAccessory) {
+        _indicatorValue = toValue;
+        NSBlockOperation *operation_showAccessory = [NSBlockOperation blockOperationWithBlock:^{
+            [self showAccessoryOnLineWitLineNumber:toLineNumber];
+        }];
+        
+        [operation_showAccessory addDependency:oprationArrayM.lastObject];
+
+        // 将【 UI 刷新】放到主队列
+        [[NSOperationQueue mainQueue] addOperation:operation_showAccessory];
+        // 将所有的 operation 保存到数组中，后面取消 operation 时需要用到。
+        [oprationArrayM addObject:operation_showAccessory];
+    }
+
+    return [oprationArrayM copy];
 }
 
 - (void)changeIndicatorFromValue:(CGFloat)fromValue toValue:(CGFloat)toValue isShowAccessoryWhenFinished:(BOOL)isShowAccessory duration:(CGFloat)duration  {
@@ -494,102 +545,52 @@
     int minus = (int)(toLineNumber - fromLineNumber);
     CGFloat durationTemp = duration / (abs(minus) + 1);
     
-    NSOperation *lastOperation = nil;
-    
+    NSBlockOperation *lastOperation = nil;
+
     for (int i = 0; i <= abs(minus); i++) {
         
         int nextLineNumber = (int)fromLineNumber + (minus > 0 ? i : -i);
         
-        NSBlockOperation *operation_AddNewLayer2 = [NSBlockOperation blockOperationWithBlock:^{
+        NSBlockOperation *operation_setMask = [NSBlockOperation blockOperationWithBlock:^{
+            self.layer2.mask = [self maskLayerForLayer2WithLineNumber:nextLineNumber];
+        }];
+        if (lastOperation != nil) {
+            [operation_setMask addDependency:lastOperation];
+        }
+        
+        NSBlockOperation *operation_sleep = [NSBlockOperation blockOperationWithBlock:^{
             self.animationTimeInterval = durationTemp;
             [NSThread sleepForTimeInterval:durationTemp];
-            NSOperationQueue *mainQueue = [NSOperationQueue mainQueue];
-            [mainQueue addOperationWithBlock:^{
-                // 因为前面有不可暂停的延时，所以这里要加一个强行停止的开关
-                // 这个方案有误差，最好的方案应该用信号量
-                if (!self.isStop) {
-                    self.layer2.mask = [self maskLayerForLayer2WithLineNumber:nextLineNumber];
-                }
-            }];
         }];
-        if (lastOperation) {
-            [operation_AddNewLayer2 addDependency:lastOperation];
-        }
-        [self.queue addOperation:operation_AddNewLayer2];
+        [operation_sleep addDependency:operation_setMask];
         
-        lastOperation = operation_AddNewLayer2;
+        // 将【 UI 刷新】放到主队列
+        [[NSOperationQueue mainQueue] addOperation:operation_setMask];
+        
+        // 将【睡眠】放到非主队列
+        [self.queue addOperation:operation_sleep];
+        
+        // 将所有的 operation 保存到数组中，后面取消 operation 时需要用到。
+        [self.operationArrayM addObject:operation_setMask];
+        [self.operationArrayM addObject:operation_sleep];
+        
+        lastOperation = operation_sleep;
     }
     
     if (isShowAccessory) {
         _indicatorValue = toValue;
-        NSBlockOperation *operation_ShowAccessory = [NSBlockOperation blockOperationWithBlock:^{
-            NSOperationQueue *mainQueue = [NSOperationQueue mainQueue];
-            [mainQueue addOperationWithBlock:^{
+        NSBlockOperation *operation_showAccessory = [NSBlockOperation blockOperationWithBlock:^{
                 [self showAccessoryOnLineWitLineNumber:toLineNumber];
-            }];
         }];
-        if (lastOperation) {
-            [operation_ShowAccessory addDependency:lastOperation];
+        if (self.operationArrayM.lastObject) {
+            [operation_showAccessory addDependency:self.operationArrayM.lastObject];
         }
-        [self.queue addOperation:operation_ShowAccessory];
-    }
-}
 
-- (NSMutableArray *)operationFromValue:(CGFloat)fromValue toValue:(CGFloat)toValue timeInterval:(NSTimeInterval)timeInterval isShowAccessoryWhenFinished:(BOOL)isShowAccessory {
-    if (self.isStop) {
-        return [NSMutableArray array];
+        // 将【 UI 刷新】放到主队列
+        [[NSOperationQueue mainQueue] addOperation:operation_showAccessory];
+        // 将所有的 operation 保存到数组中，后面取消 operation 时需要用到。
+        [self.operationArrayM addObject:operation_showAccessory];
     }
-    NSInteger fromLineNumber = [self lineNumberWithIndicatorValue:fromValue];
-    NSInteger toLineNumber = [self lineNumberWithIndicatorValue:toValue];
-    
-    NSMutableArray *oprationArrayM = [NSMutableArray array];
-    
-    int minus = (int)(toLineNumber - fromLineNumber);
-    
-    NSOperation *lastOperation = nil;
-    
-    for (int i = 0; i <= abs(minus); i++) {
-        
-        int nextLineNumber = (int)fromLineNumber + (minus > 0 ? i : -i);
-        
-        NSBlockOperation *operation_AddNewLayer2 = [NSBlockOperation blockOperationWithBlock:^{
-            self.animationTimeInterval = timeInterval;
-            [NSThread sleepForTimeInterval:timeInterval];
-            NSOperationQueue *mainQueue = [NSOperationQueue mainQueue];
-            [mainQueue addOperationWithBlock:^{
-                if (!self.isStop) {
-                    //YYLog(@"正在滚动");
-                    self.layer2.mask = [self maskLayerForLayer2WithLineNumber:nextLineNumber];
-                } else {
-                    //YYLog(@"遇到锁，取消执行");
-                }
-            }];
-        }];
-        if (lastOperation) {
-            // 依赖前一个任务
-            [operation_AddNewLayer2 addDependency:lastOperation];
-        }
-        [oprationArrayM addObject:operation_AddNewLayer2];
-        
-        lastOperation = operation_AddNewLayer2;
-    }
-    
-    if (isShowAccessory) {
-        _indicatorValue = toValue;
-        NSBlockOperation *operation_ShowAccessory = [NSBlockOperation blockOperationWithBlock:^{
-            NSOperationQueue *mainQueue = [NSOperationQueue mainQueue];
-            [mainQueue addOperationWithBlock:^{
-                [self showAccessoryOnLineWitLineNumber:toLineNumber];
-            }];
-        }];
-        if (lastOperation) {
-            // 依赖前一个任务
-            [operation_ShowAccessory addDependency:lastOperation];
-        }
-        [oprationArrayM addObject:operation_ShowAccessory];
-    }
-    
-    return oprationArrayM;
 }
 
 /**
@@ -892,14 +893,19 @@
     });
 }
 
+- (void)cancelAllOperations {
+    [self.operationArrayM enumerateObjectsUsingBlock:^(NSOperation * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        [obj cancel];
+    }];
+    [self.operationArrayM removeAllObjects];
+}
+
 - (void)setIndicatorValue:(NSInteger)indicatorValue animated:(BOOL)animated {
     if (!self.enable) {
         return;
     }
     
-    if (self.queue) {
-        [self.queue cancelAllOperations];
-    }
+    [self cancelAllOperations];
     
     if (indicatorValue < self.minValue) {
         indicatorValue = self.minValue;
@@ -947,9 +953,7 @@
         return;
     }
     
-    if (self.queue) {
-        [self.queue cancelAllOperations];
-    }
+    [self cancelAllOperations];
     
     if (indicatorValue > self.maxValue) {
         indicatorValue = self.maxValue;
@@ -1000,6 +1004,13 @@
     [self addLayer1];
     [self addLayer2];
     [self addLayer3];
+}
+
+- (NSMutableArray<NSOperation *> *)operationArrayM {
+    if (_operationArrayM == nil) {
+        _operationArrayM = [NSMutableArray array];
+    }
+    return _operationArrayM;;
 }
 
 @end

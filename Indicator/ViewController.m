@@ -24,18 +24,22 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view, typically from a nib.
+    
     self.rectangleIndicatorView.minValue = 40;
     self.rectangleIndicatorView.maxValue = 80;
     self.rectangleIndicatorView.valueToShowArray = @[@40, @50, @60, @70, @80];
     self.rectangleIndicatorView.indicatorValue = 50;
+    __weak typeof(self) weakSelf = self;
     self.rectangleIndicatorView.minusBlock = ^{
         NSLog(@"点击了 -");
-        self.rectangleIndicatorView.indicatorValue -= 1;
+        weakSelf.rectangleIndicatorView.indicatorValue -= 1;
     };
     self.rectangleIndicatorView.addBlock = ^{
         NSLog(@"点击了 +");
-        self.rectangleIndicatorView.indicatorValue += 1;
+        weakSelf.rectangleIndicatorView.indicatorValue += 1;
+    };
+    self.rectangleIndicatorView.touchEndBlock = ^(NSInteger indicatorValue){
+        NSLog(@"触摸结束，%ld", indicatorValue);
     };
     
     self.circleIndicatorView.minValue = 40;
@@ -44,11 +48,14 @@
     self.circleIndicatorView.indicatorValue = 60;
     self.circleIndicatorView.minusBlock = ^{
         NSLog(@"点击了 -");
-        self.circleIndicatorView.indicatorValue -= 1;
+        weakSelf.circleIndicatorView.indicatorValue -= 1;
     };
     self.circleIndicatorView.addBlock = ^{
         NSLog(@"点击了 +");
-        self.circleIndicatorView.indicatorValue += 1;
+        weakSelf.circleIndicatorView.indicatorValue += 1;
+    };
+    self.circleIndicatorView.touchEndBlock = ^(NSInteger indicatorValue){
+        NSLog(@"触摸结束，%ld", indicatorValue);
     };
 }
 

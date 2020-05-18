@@ -81,6 +81,7 @@
 
 @property (nonatomic, copy) void(^minusBlock)();
 @property (nonatomic, copy) void(^addBlock)();
+@property (nonatomic, copy) void(^touchEndBlock)(NSInteger indicatorValue);
 
 /**
  开始闪动
