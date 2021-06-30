@@ -109,19 +109,27 @@
 - (void)setup {
     [self setupDefaultDataThatIsNotRelatedToFrame];
     [self initializeUI];
+    [self addLayer];
 }
 
 - (void)layoutSubviews {
     [self setDataThatIsRelatedToFrameToCustomRatio];
     [self configureDataToFitSize];
     [self updateUI];
+    [self updateLayerUI];
 }
 
-- (void)drawRect:(CGRect)rect {
-    [self.layer1 removeFromSuperlayer];
-    [self.layer2 removeFromSuperlayer];
-    [self.layer3 removeFromSuperlayer];
-    //NSLog(@"%@", [NSThread currentThread]);
+- (void)updateLayerUI {
+    self.layer1.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+    self.layer1.mask = [self maskLayerForLayer1];
+    
+    self.layer2.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+    
+    self.layer3.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+    self.layer3.mask = [self maskLayerForLayer3];
+}
+
+- (void)addLayer {
     [self addLayer1];
     [self addLayer2];
     [self addLayer3];
@@ -395,37 +403,31 @@
 
 - (void)addLayer1 {
     //━━━━━━━━━━━━━━━━━━━━ layer1：灰色层 ━━━━━━━━━━━━━━━━━━━━
-    CALayer *layer1 = [CALayer layer];
-    self.layer1 = layer1;
-    layer1.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-    [self.layer addSublayer:layer1];
-    layer1.backgroundColor = [UIColor colorWithRed:219.0/255.0 green:219.0/255.0 blue:219.0/255.0 alpha:255.0/255.0].CGColor;
-    layer1.mask = [self maskLayerForLayer1];
+    CALayer *layer = [CALayer layer];
+    self.layer1 = layer;
+    [self.layer addSublayer:layer];
+    layer.backgroundColor = [UIColor colorWithRed:219.0/255.0 green:219.0/255.0 blue:219.0/255.0 alpha:255.0/255.0].CGColor;
 }
 
 - (void)addLayer2 {
     //━━━━━━━━━━━━━━━━━━━━ layer2：彩色渐变层 ━━━━━━━━━━━━━━━━━━━━
-    CAGradientLayer *layer2_GradientLayer = [CAGradientLayer layer];
-    self.layer2 = layer2_GradientLayer;
-    layer2_GradientLayer.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-    [self.layer addSublayer:layer2_GradientLayer];
-    [layer2_GradientLayer setColors:@[(id)[UIColor colorWithRed:72.0/255.0 green:178.0/255.0 blue:220.0/255.0 alpha:255.0/255.0].CGColor,
+    CAGradientLayer *layer_GradientLayer = [CAGradientLayer layer];
+    self.layer2 = layer_GradientLayer;
+    [self.layer addSublayer:layer_GradientLayer];
+    [layer_GradientLayer setColors:@[(id)[UIColor colorWithRed:72.0/255.0 green:178.0/255.0 blue:220.0/255.0 alpha:255.0/255.0].CGColor,
                                       (id)[UIColor colorWithRed:222.0/255.0 green:215.0/255.0 blue:78.0/255.0 alpha:255.0/255.0].CGColor,
                                       (id)[UIColor colorWithRed:240.0/255.0 green:42.0/255.0 blue:36.0/255.0 alpha:255.0/255.0].CGColor]];
-    [layer2_GradientLayer setLocations:@[@0.3, @0.5, @0.7]];
-    [layer2_GradientLayer setStartPoint:CGPointMake(0, 0.5)];
-    [layer2_GradientLayer setEndPoint:CGPointMake(1, 0.5)];
-    layer2_GradientLayer.mask = [CALayer layer];
+    [layer_GradientLayer setLocations:@[@0.3, @0.5, @0.7]];
+    [layer_GradientLayer setStartPoint:CGPointMake(0, 0.5)];
+    [layer_GradientLayer setEndPoint:CGPointMake(1, 0.5)];
 }
 
 - (void)addLayer3 {
     //━━━━━━━━━━━━━━━━━━━━ layer3：内灰色圈的灰色层 ━━━━━━━━━━━━━━━━━━━━
     CALayer *layer = [CALayer layer];
     self.layer3 = layer;
-    layer.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
     [self.layer addSublayer:layer];
     layer.backgroundColor = [UIColor colorWithRed:219.0/255.0 green:219.0/255.0 blue:219.0/255.0 alpha:255.0/255.0].CGColor;
-    layer.mask = [self maskLayerForLayer3];
 }
 
 - (void)shineWithTimeInterval:(NSTimeInterval)timeInterval pauseDuration:(NSTimeInterval)pauseDuration finalValue:(NSUInteger)finalValue finishBlock:(void(^)())finishBlock {
@@ -927,14 +929,6 @@
     }
     
     [self changeIndicatorFromValue:oldIndicatorValue toValue:indicatorValue isShowAccessoryWhenFinished:YES duration:durationTemp];
-    
-//    if (animated) {
-//        [self setIndicatorValue:indicatorValue];
-//    } else {
-//        [self.queue cancelAllOperations];
-//        NSInteger toLineNumber = [self lineNumberWithIndicatorValue:indicatorValue];
-//        self.layer2.mask = [self maskLayerForLayer2WithLineNumber:toLineNumber];
-//    }
 }
 
 #pragma mark - ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ Getter and Setter ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
@@ -954,6 +948,10 @@
     }
     
     [self cancelAllOperations];
+    
+    if (indicatorValue < self.minValue) {
+        indicatorValue = self.minValue;
+    }
     
     if (indicatorValue > self.maxValue) {
         indicatorValue = self.maxValue;
@@ -997,13 +995,13 @@
     }
     [self calculateDataAccordingDynamicValue];
     
-    [self.layer1 removeFromSuperlayer];
-    [self.layer2 removeFromSuperlayer];
-    [self.layer3 removeFromSuperlayer];
-    
-    [self addLayer1];
-    [self addLayer2];
-    [self addLayer3];
+//    [self.layer1 removeFromSuperlayer];
+//    [self.layer2 removeFromSuperlayer];
+//    [self.layer3 removeFromSuperlayer];
+//
+//    [self addLayer1];
+//    [self addLayer2];
+//    [self addLayer3];
 }
 
 - (NSMutableArray<NSOperation *> *)operationArrayM {

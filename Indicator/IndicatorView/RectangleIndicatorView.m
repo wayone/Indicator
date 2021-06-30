@@ -119,12 +119,17 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
     [self setDataThatIsRelatedToFrameToCustomRatio];
     [self configureDataToFitSize];
     [self updateUI];
+    [self updateLayerUI];
 }
 
-- (void)drawRect:(CGRect)rect {
-    [self.layer1 removeFromSuperlayer];
-    [self.layer2 removeFromSuperlayer];
+- (void)updateLayerUI {
+    self.layer1.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+    self.layer1.mask = [self maskLayerForLayer1];
     
+    self.layer2.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+}
+
+- (void)addLayer {
     [self addLayer1];
     [self addLayer2];
 }
@@ -342,27 +347,23 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
 
 - (void)addLayer1 {
     //━━━━━━━━━━━━━━━━━━━━ layer1：灰色层 ━━━━━━━━━━━━━━━━━━━━
-    CALayer *layer1 = [CALayer layer];
-    self.layer1 = layer1;
-    layer1.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-    [self.layer addSublayer:layer1];
-    layer1.backgroundColor = [UIColor colorWithRed:219.0/255.0 green:219.0/255.0 blue:219.0/255.0 alpha:255.0/255.0].CGColor;
-    layer1.mask = [self maskLayerForLayer1];
+    CALayer *layer = [CALayer layer];
+    self.layer1 = layer;
+    [self.layer addSublayer:layer];
+    layer.backgroundColor = [UIColor colorWithRed:219.0/255.0 green:219.0/255.0 blue:219.0/255.0 alpha:255.0/255.0].CGColor;
 }
 
 - (void)addLayer2 {
     //━━━━━━━━━━━━━━━━━━━━ layer2：彩色渐变层 ━━━━━━━━━━━━━━━━━━━━
-    CAGradientLayer *layer2_GradientLayer =  [CAGradientLayer layer];
-    self.layer2 = layer2_GradientLayer;
-    layer2_GradientLayer.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-    [self.layer addSublayer:layer2_GradientLayer];
-    [layer2_GradientLayer setColors:@[(id)[UIColor colorWithRed:72.0/255.0 green:178.0/255.0 blue:220.0/255.0 alpha:255.0/255.0].CGColor,
+    CAGradientLayer *layer_GradientLayer =  [CAGradientLayer layer];
+    self.layer2 = layer_GradientLayer;
+    [self.layer addSublayer:layer_GradientLayer];
+    [layer_GradientLayer setColors:@[(id)[UIColor colorWithRed:72.0/255.0 green:178.0/255.0 blue:220.0/255.0 alpha:255.0/255.0].CGColor,
                                       (id)[UIColor colorWithRed:222.0/255.0 green:215.0/255.0 blue:78.0/255.0 alpha:255.0/255.0].CGColor,
                                       (id)[UIColor colorWithRed:240.0/255.0 green:42.0/255.0 blue:36.0/255.0 alpha:255.0/255.0].CGColor]];
-    [layer2_GradientLayer setLocations:@[@0.3, @0.5, @0.7]];
-    [layer2_GradientLayer setStartPoint:CGPointMake(0, 0.5)];
-    [layer2_GradientLayer setEndPoint:CGPointMake(1, 0.5)];
-    layer2_GradientLayer.mask = [CALayer layer];
+    [layer_GradientLayer setLocations:@[@0.3, @0.5, @0.7]];
+    [layer_GradientLayer setStartPoint:CGPointMake(0, 0.5)];
+    [layer_GradientLayer setEndPoint:CGPointMake(1, 0.5)];
 }
 
 - (void)shineWithTimeInterval:(NSTimeInterval)timeInterval pauseDuration:(NSTimeInterval)pauseDuration finalValue:(NSUInteger)finalValue finishBlock:(void(^)())finishBlock {
@@ -848,6 +849,10 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
     
     [self cancelAllOperations];
     
+    if (indicatorValue < self.minValue) {
+        indicatorValue = self.minValue;
+    }
+    
     if (indicatorValue > self.maxValue) {
         indicatorValue = self.maxValue;
     }
@@ -881,24 +886,6 @@ typedef NS_ENUM(NSUInteger, LineProtrudingOrientation) {
 - (void)setHotStatusOnOff:(BOOL)hotStatusOnOff {
     _hotStatusOnOff = hotStatusOnOff;
     self.hotStatusButton.hidden = hotStatusOnOff;
-}
-
-- (void)setMinValue:(NSInteger)minValue {
-    _minValue = minValue;
-    
-    [self.layer1 removeFromSuperlayer];
-    [self.layer2 removeFromSuperlayer];
-    [self addLayer1];
-    [self addLayer2];
-}
-
-- (void)setMaxValue:(NSInteger)maxValue {
-    _maxValue = maxValue;
-    
-    [self.layer1 removeFromSuperlayer];
-    [self.layer2 removeFromSuperlayer];
-    [self addLayer1];
-    [self addLayer2];
 }
 
 - (void)setValueToShowArray:(NSArray<NSNumber *> *)valueToShowArray {
